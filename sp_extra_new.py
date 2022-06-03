@@ -142,13 +142,13 @@ def train(train_dataloader,test_dataloader,i):
     return train_loss, valid_loss, train_acc, valid_acc
 
 
-def test(test_dataloader, model):
+def test(test_dataloader, model, threshold=0.5):
     correct = 0 
     total = 0
     model.eval()
     out = []
+    valid=[]
     omit=[]
-    threshold=0.5
 
     with torch.no_grad():
         for inputs, labels in test_dataloader:
@@ -156,18 +156,15 @@ def test(test_dataloader, model):
             inputs = inputs.cuda()
             labels = labels.cuda()
             
-            outputs = model(inputs)
-            sm = torch.nn.Softmax(dim=1)
-            probabilities = sm(outputs) 
+            outputs = F.softmax(model(inputs), dim=1)
 
-            for i in range(len(probabilities)):
-                p=probabilities[i].tolist()
-                largest = max(p)
-
-                if(max(p)<threshold):
+            for j in range(len(outputs)):
+                p = outputs[j].tolist()
+                if max(p) < threshold:
+                    valid.append(False)
                     omit.append(0)
-                    
                 else:
+                    valid.append(True)
                     omit.append(1)
 
             _, predicted = outputs.max(1)
@@ -176,7 +173,7 @@ def test(test_dataloader, model):
             total += labels.size(0)
     
     print("Accuracy:", round(correct/total, 3))
-    return out,omit
+    return out, np.array(valid), omit
 
 
 def visualize(true_label, predicted_label):
@@ -313,8 +310,8 @@ else:
 
     test_dataset = VectorCamDataset(test_data, test_label)
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
-
-    out,omit = test(test_dataloader, test_model)
+    """
+    out,valid = test(test_dataloader, test_model, threshold=0.5)
     out = np.concatenate(out).ravel()
 
     omit_count=0
@@ -329,8 +326,9 @@ else:
 
             out=np.delete(out,j)
             test_label=np.delete(test_label,j)
+            omit=np.delete(omit,j)
             omit_count+=1
-
+    
     y_axis = [label_match, label_mismatch]
     x_axis = ["match", "mismatch"]
     removed = np.array([label_match, label_mismatch])
@@ -343,4 +341,32 @@ else:
 
 
     print("removed count",omit_count)
+    visualize(test_label, out)
+    """
+    out, valid, omit = test(test_dataloader, test_model, threshold=0.9)
+    out = np.concatenate(out)
+
+    omit_count=0
+    label_match=0
+    label_mismatch=0
+    for j in range(len(omit)):
+        if(omit[j]==0):
+            if(out[j]==test_label[j]):
+                label_match+=1 
+            else:
+                label_mismatch+=1
+                
+    y_axis = [label_match, label_mismatch]
+    x_axis = ["match", "mismatch"]
+    removed = np.array([label_match, label_mismatch])
+    print('\'true label = predicted label\' count: ',label_match)
+    print('\'true label != predicted label\' count: ',label_mismatch)
+    plt.bar(x_axis, y_axis, width = 0.4)
+    plt.savefig('/home/shrutihegde/Desktop/Removed_distribution.jpg')
+
+
+    omit_count_total = np.size(valid) - np.count_nonzero(valid)
+    print("removed count", omit_count_total)
+    out = out[valid]
+    test_label = np.array(test_label)[valid]
     visualize(test_label, out)
