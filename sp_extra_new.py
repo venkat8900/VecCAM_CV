@@ -310,60 +310,52 @@ else:
 
     test_dataset = VectorCamDataset(test_data, test_label)
     test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
-    """
-    out,valid = test(test_dataloader, test_model, threshold=0.5)
-    out = np.concatenate(out).ravel()
 
-    omit_count=0
-    label_match=0
-    label_mismatch=0
-    for j in range(len(omit)):
-        if(omit[j]==0):
-            if(out[j]==test_label[j]):
-                label_match+=1 
-            else:
-                label_mismatch+=1
-
-            out=np.delete(out,j)
-            test_label=np.delete(test_label,j)
-            omit=np.delete(omit,j)
-            omit_count+=1
-    
-    y_axis = [label_match, label_mismatch]
-    x_axis = ["match", "mismatch"]
-    removed = np.array([label_match, label_mismatch])
-
-    print('\'true label = predicted label\' count: ',label_match)
-    print('\'true label != predicted label\' count: ',label_mismatch)
-
-    plt.bar(x_axis, y_axis, width = 0.4)
-    plt.savefig('/home/shrutihegde/Desktop/Removed_distribution.jpg')
-
-
-    print("removed count",omit_count)
-    visualize(test_label, out)
-    """
-    out, valid, omit = test(test_dataloader, test_model, threshold=0.9)
+    out, valid, omit = test(test_dataloader, test_model, threshold=0.7)
     out = np.concatenate(out)
 
     omit_count=0
     label_match=0
     label_mismatch=0
+    whole_removed=[[0 for k in range(5)] for l in range(5)] # 5x5 matrix empty
+
     for j in range(len(omit)):
         if(omit[j]==0):
             if(out[j]==test_label[j]):
                 label_match+=1 
+                print(out[j])
+                print(whole_removed[0][0])
+                whole_removed[out[j]][out[j]]+=1
+
             else:
                 label_mismatch+=1
-                
+                print("LABEL MATCH",out[j],test_label[j])
+                test_label_np=test_label[j].detach().numpy()
+                whole_removed[out[j]][(test_label_np)]+=1
+
+    fig = plt.figure(figsize=(8, 8))
+    ax = plt.subplot()
+    hm = sn.heatmap(whole_removed, annot=True, ax=ax, cmap="PuBu")
+    ax.set_yticklabels(hm.get_yticklabels(), rotation=90)
+    ax.set_xlabel('Predicted labels', fontsize=15)
+    ax.set_ylabel('True labels', fontsize=15)
+    ax.xaxis.set_ticklabels(species_all)
+    ax.yaxis.set_ticklabels(species_all)
+    plt.xticks(rotation=90)
+    plt.yticks(rotation=0)
+    plt.savefig('/home/shrutihegde/Desktop/Removed_CF.jpg')
+
+    #print(whole_removed)
     y_axis = [label_match, label_mismatch]
     x_axis = ["match", "mismatch"]
     removed = np.array([label_match, label_mismatch])
     print('\'true label = predicted label\' count: ',label_match)
     print('\'true label != predicted label\' count: ',label_mismatch)
+
+    """
     plt.bar(x_axis, y_axis, width = 0.4)
     plt.savefig('/home/shrutihegde/Desktop/Removed_distribution.jpg')
-
+    """
 
     omit_count_total = np.size(valid) - np.count_nonzero(valid)
     print("removed count", omit_count_total)
