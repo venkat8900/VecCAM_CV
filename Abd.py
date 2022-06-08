@@ -1,7 +1,7 @@
 """
-Species Classification
+Abdomen Classification
+"UF/FF/SG/G"
 
-0-funestus 1-gambiae 2-Anopheles_other 3-culex 4-All other
 """
 
 import numpy as np
